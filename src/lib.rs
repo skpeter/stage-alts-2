@@ -198,10 +198,10 @@ unsafe fn prepare_for_load(ctx: &InlineCtx) {
 
     let search = FilesystemInfo::instance().unwrap().search();
 
-    let Ok(path) = search.get_path_list_entry_from_hash(*ctx.registers[8].x.as_ref()) else {
+    let Ok(path) = search.get_path_list_entry_from_hash(ctx.registers[8].x()) else {
         log::warn!(
             "Failed to get the path list entry from {:#x}",
-            *ctx.registers[8].x.as_ref()
+            ctx.registers[8].x()
         );
         return;
     };
@@ -209,7 +209,7 @@ unsafe fn prepare_for_load(ctx: &InlineCtx) {
     let Ok(parent_path) = search.get_path_list_entry_from_hash(path.parent.hash40()) else {
         log::warn!(
             "Failed to get parent of the path {:#x}",
-            *ctx.registers[8].x.as_ref()
+            ctx.registers[8].x()
         );
         return;
     };
@@ -239,7 +239,7 @@ unsafe fn get_place_hash(place_id: usize) -> hash40::Hash40 {
 
 #[skyline::hook(offset = 0x16b9eb4, inline)]
 unsafe fn fetch_current_alt_from_bgm_id(ctx: &InlineCtx) {
-    let bgm_id_ptr = *ctx.registers[1].x.as_ref() + 0x28;
+    let bgm_id_ptr = ctx.registers[1].x() + 0x28;
 
     let bgm_id_ptr = bgm_id_ptr as *mut u64;
 
@@ -248,7 +248,7 @@ unsafe fn fetch_current_alt_from_bgm_id(ctx: &InlineCtx) {
 
     let mgr = manager::MANAGER.read();
     let cache = mgr.music_cache.as_ref().unwrap();
-    let stage_id = *(*ctx.registers[1].x.as_ref() as *const u32) as usize;
+    let stage_id = *(ctx.registers[1].x() as *const u32) as usize;
 
     let hash = get_place_hash(get_place_id(stage_id));
     if !cache.is_song_allowed(hash40::Hash40(bgm_hash)) {

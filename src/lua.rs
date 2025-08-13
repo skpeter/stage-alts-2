@@ -254,7 +254,7 @@ unsafe fn push_new_singleton(
 
 #[skyline::hook(offset = 0x3373a78, inline)]
 unsafe fn add_to_key_context(ctx: &InlineCtx) {
-    let lua_state: *mut lua::lua_State = *ctx.registers[19].x.as_ref() as _;
+    let lua_state: *mut lua::lua_State = ctx.registers[19].x() as _;
 
     let registry = &[
         lua::luaL_Reg {
