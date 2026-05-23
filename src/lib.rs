@@ -198,16 +198,35 @@ unsafe fn init_loaded_dir(info: &'static FilesystemInfo, index: u32) -> *mut Loa
                     path.hash40().pretty()
                 );
             } else {
-                for child in loaded_directory.child_path_indices.iter().copied() {
-                    resources::decrement_ref_count(fs, child);
-                }
+                // Patching `dir_info` above rewires each vanilla FilePath to point at
+                // the alt's `FileInfoIndice`. After that rewire, calling
+                // `decrement_ref_count` on the *vanilla* child indices actually
+                // decrements the *alt* data's ref count (because ref counting follows
+                // the FilePath -> indice -> data chain). If we decrement before
+                // incrementing the alt entries the alt buffer can momentarily reach
+                // zero and be unloaded by the resource thread — on PS2 this is a
+                // common shared-buffer case (auroravision/ashiba* groups) and the race
+                // manifests as a silent loading-screen hang with no atmosphere log.
+                //
+                // Bump the alt refs first, then drop the vanilla ones, so the live
+                // count never crosses zero.
+                let new_children: Vec<u32> = files;
 
-                loaded_directory.child_path_indices.clear();
-
-                for file in files {
-                    loaded_directory.child_path_indices.push(file);
+                for file in new_children.iter().copied() {
                     resources::increment_ref_count(fs, file);
                     resources::add_to_resource_list(res_service, file, 0);
+                }
+
+                let old_children: Vec<u32> =
+                    loaded_directory.child_path_indices.iter().copied().collect();
+
+                loaded_directory.child_path_indices.clear();
+                for file in new_children.iter().copied() {
+                    loaded_directory.child_path_indices.push(file);
+                }
+
+                for child in old_children {
+                    resources::decrement_ref_count(fs, child);
                 }
             }
         }
